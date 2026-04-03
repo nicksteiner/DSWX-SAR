@@ -72,20 +72,26 @@ git checkout turbo
 - **GPU acceleration via CuPy** (optional) — region growing, SAR filtering, and
   morphological operations run on GPU when available.
 
-**To enable GPU acceleration:**
+**GPU acceleration (auto-detected):**
+
+If CuPy and cucim are installed and a CUDA GPU is present, the GPU backend
+activates automatically — no configuration needed.
 
 ```bash
 # Install CuPy and cucim (match your CUDA version)
 pip install cupy-cuda12x cucim-cu12
 
-# Enable GPU backend
-export DSWX_USE_GPU=1
-
-# Run as normal
+# Run as normal — GPU is auto-detected
 dswx_s1.py <path to runconfig file>
 ```
 
-When `DSWX_USE_GPU` is unset or `0`, the code falls back to numpy/scipy with zero
+Override with environment variables if needed:
+```bash
+export DSWX_USE_GPU=0   # Force CPU even when GPU is available
+export DSWX_USE_GPU=1   # Force GPU (fails if unavailable)
+```
+
+When CuPy is not installed, the code falls back to numpy/scipy with zero
 overhead — no GPU hardware or packages required.
 
 **Keeping turbo up to date with upstream:**

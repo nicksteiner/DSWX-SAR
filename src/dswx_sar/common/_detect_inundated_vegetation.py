@@ -11,6 +11,7 @@ from dswx_sar.common import _dswx_sar_util
 from dswx_sar.common import _filter_SAR
 from dswx_sar.common._pre_processing import pol_ratio
 from dswx_sar.common._masking_with_ancillary import FillMaskLandCover
+from dswx_sar.common._backend import safe_n_jobs
 
 logger = logging.getLogger('dswx_sar')
 
@@ -217,11 +218,11 @@ def run(cfg):
                 all_inundated_cand, filt_ratio_db)
 
     # Parallel compute, sequential write
-    number_workers = processing_cfg.number_workers \
-        if hasattr(processing_cfg, 'number_workers') else -1
-    results = Parallel(n_jobs=number_workers)(
+    block_params_list = list(block_params)
+    n_jobs = safe_n_jobs(len(block_params_list))
+    results = Parallel(n_jobs=n_jobs)(
         delayed(_compute_inundated_veg_block)(block_param)
-        for block_param in block_params
+        for block_param in block_params_list
     )
 
     for (block_param, output_data, target_inundated_vege_class,

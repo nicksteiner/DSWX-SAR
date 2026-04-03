@@ -105,3 +105,29 @@ def to_host(arr):
     if _USE_GPU and hasattr(arr, 'get'):
         return arr.get()
     return arr
+
+
+def safe_n_jobs(n_blocks, memory_per_job_gb=1.0):
+    """Return a memory-aware worker count for joblib.Parallel.
+
+    Caps workers at min(cpu_count-1, n_blocks, RAM-based limit).
+    Returns 1 if there aren't enough blocks or RAM to justify
+    parallel overhead.
+
+    Parameters
+    ----------
+    n_blocks : int
+        Number of independent work items (blocks).
+    memory_per_job_gb : float
+        Estimated peak memory per worker in GB (default 1.0).
+    """
+    import psutil
+    cpu_count = max(1, os.cpu_count() - 1)
+    total_ram_gb = psutil.virtual_memory().available / 1e9
+    # Reserve 50% of available RAM for other usage
+    max_by_ram = max(1, int(0.5 * total_ram_gb / memory_per_job_gb))
+    n_jobs = min(cpu_count, n_blocks, max_by_ram)
+    # Don't bother with parallel overhead for tiny workloads
+    if n_jobs <= 1 or n_blocks < 3:
+        return 1
+    return n_jobs

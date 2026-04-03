@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 import numpy as np
 
 from dswx_sar.common import _masking_with_ancillary
-from dswx_sar.common._backend import to_device, to_host, use_gpu
+from dswx_sar.common._backend import to_device, to_host, use_gpu, safe_n_jobs
 
 logger = logging.getLogger('dswx_sar')
 
@@ -582,11 +582,10 @@ def run(cfg):
                 hand_z, slope_z, area_s, ref_water, copol_only)
 
     # Parallel compute, sequential write
-    number_workers = processing_cfg.number_workers \
-        if hasattr(processing_cfg, 'number_workers') else -1
     block_params_list = list(enumerate(block_params))
+    n_jobs = safe_n_jobs(len(block_params_list))
 
-    results = Parallel(n_jobs=number_workers)(
+    results = Parallel(n_jobs=n_jobs)(
         delayed(_compute_fuzzy_block)(block_ind, block_param)
         for block_ind, block_param in block_params_list
     )

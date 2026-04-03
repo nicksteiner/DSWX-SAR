@@ -20,6 +20,7 @@ from dswx_sar.sentinel1.dswx_runconfig import (DSWX_S1_POL_DICT,
                                      RunConfig)
 from dswx_sar.common._dswx_sar_util import check_gdal_raster_s3
 from dswx_sar.common._masking_with_ancillary import get_label_landcover_esa_10
+from dswx_sar.common._backend import safe_n_jobs
 
 
 logger = logging.getLogger('dswx_sar')
@@ -265,11 +266,11 @@ def run(cfg):
         return block_param, output_image_set
 
     # Parallel compute, sequential write
-    number_workers = processing_cfg.number_workers \
-        if hasattr(processing_cfg, 'number_workers') else -1
-    results = Parallel(n_jobs=number_workers)(
+    block_params_list = list(enumerate(block_params))
+    n_jobs = safe_n_jobs(len(block_params_list))
+    results = Parallel(n_jobs=n_jobs)(
         delayed(_filter_one_block)(block_param)
-        for block_ind, block_param in enumerate(block_params)
+        for block_ind, block_param in block_params_list
     )
 
     results.sort(key=lambda x: x[0].write_start_line)

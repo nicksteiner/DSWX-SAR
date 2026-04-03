@@ -16,6 +16,8 @@ from skimage.filters import threshold_multiotsu
 from typing import List, Tuple
 
 from dswx_sar.common import _region_growing
+from dswx_sar.common._backend import (xp, xndimage, x_threshold_multiotsu,
+                                       to_device, to_host, use_gpu)
 
 
 logger = logging.getLogger('dswx_sar')

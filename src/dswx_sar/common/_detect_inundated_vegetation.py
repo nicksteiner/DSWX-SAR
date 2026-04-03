@@ -4,6 +4,7 @@ import mimetypes
 import os
 import time
 
+from joblib import Parallel, delayed
 import numpy as np
 
 from dswx_sar.common import _dswx_sar_util
@@ -148,11 +149,10 @@ def run(cfg):
                     im_meta['width']),
         pad_shape=pad_shape)
 
-    for block_param in block_params:
-
+    def _compute_inundated_veg_block(block_param):
+        """Compute inundated vegetation for a single block (no writes)."""
         rtc_dual = _dswx_sar_util.get_raster_block(
-            rtc_dual_path,
-            block_param)
+            rtc_dual_path, block_param)
 
         rtc_ratio = pol_ratio(
             np.squeeze(rtc_dual[copol_ind, :, :]),
@@ -161,21 +161,17 @@ def run(cfg):
         if filter_method == 'lee':
             filtering_method = _filter_SAR.lee_enhanced_filter
             filter_option = vars(filter_options.lee_filter)
-
         elif filter_method == 'anisotropic_diffusion':
             filtering_method = _filter_SAR.anisotropic_diffusion
             filter_option = vars(filter_options.anisotropic_diffusion)
-
         elif filter_method == 'guided_filter':
             filtering_method = _filter_SAR.guided_filter
             filter_option = vars(filter_options.guided_filter)
-
         elif filter_method == 'bregman':
             filtering_method = _filter_SAR.tv_bregman
             filter_option = vars(filter_options.bregman)
 
-        filt_ratio = filtering_method(
-                        rtc_ratio, **filter_option)
+        filt_ratio = filtering_method(rtc_ratio, **filter_option)
         filt_ratio_db = 10 * np.log10(filt_ratio +
                                       _dswx_sar_util.Constants.negligible_value)
         cross_db = 10 * np.log10(
@@ -195,9 +191,6 @@ def run(cfg):
                 mask_label=inundated_vege_target,
                 block_param=block_param)
 
-            # GLAD has no-data values for small island and polar regions
-            # such as Greenland. The WorldCover will be alternatively used
-            # for the no-data areas.
             glad_no_data = mask_obj.get_mask(
                 mask_label=[255],
                 block_param=block_param)
@@ -209,7 +202,6 @@ def run(cfg):
                                                    dtype='int8')
             target_inundated_vege_class[
                 glad_no_data & target_replace_class] = 2
-                # target_replace_class[glad_no_data]
 
         no_data = np.isnan(filt_ratio)
         target_inundated_vege_class[no_data] = 0
@@ -220,6 +212,20 @@ def run(cfg):
         inundated_vegetation = all_inundated_cand & \
             (target_inundated_vege_class > 0)
         output_data[inundated_vegetation] = 2
+
+        return (block_param, output_data, target_inundated_vege_class,
+                all_inundated_cand, filt_ratio_db)
+
+    # Parallel compute, sequential write
+    number_workers = processing_cfg.number_workers \
+        if hasattr(processing_cfg, 'number_workers') else -1
+    results = Parallel(n_jobs=number_workers)(
+        delayed(_compute_inundated_veg_block)(block_param)
+        for block_param in block_params
+    )
+
+    for (block_param, output_data, target_inundated_vege_class,
+         all_inundated_cand, filt_ratio_db) in results:
 
         _dswx_sar_util.write_raster_block(
             out_raster=inundated_vege_path,

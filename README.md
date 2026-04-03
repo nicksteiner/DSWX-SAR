@@ -49,6 +49,57 @@ This file can be copied and modified for your needs.
 Note: The runconfig must meet this schema: `DSWX-SAR > src > dswx_sar > schemas > dswx_s1.yaml`.
 
 
+### Turbo Branch (Performance-Optimized)
+
+The `turbo` branch includes performance optimizations that can significantly reduce
+processing time. These changes are maintained as a separate branch for benchmarking
+and to stay cleanly rebasable onto JPL's upstream `main`.
+
+```bash
+git checkout turbo
+```
+
+**What's different on `turbo`:**
+
+- **joblib parallelization** of all block-processing stages (fuzzy value computation,
+  S1 pre-processing, inundated vegetation detection) and top-level polarization set
+  processing. ~2-4x speedup on multi-core systems.
+- **O(n^2) → O(n) fix** in threshold computation (`np.append` in loop replaced with
+  list accumulation + single `np.concatenate`).
+- **Per-stage profiling** — every pipeline stage logs wall-clock time with `[profile]`
+  tags so you can see exactly where time goes.
+- **Vectorized comparison tool** — pixel-level nested loop replaced with numpy ops.
+- **GPU acceleration via CuPy** (optional) — region growing, SAR filtering, and
+  morphological operations run on GPU when available.
+
+**To enable GPU acceleration:**
+
+```bash
+# Install CuPy and cucim (match your CUDA version)
+pip install cupy-cuda12x cucim-cu12
+
+# Enable GPU backend
+export DSWX_USE_GPU=1
+
+# Run as normal
+dswx_s1.py <path to runconfig file>
+```
+
+When `DSWX_USE_GPU` is unset or `0`, the code falls back to numpy/scipy with zero
+overhead — no GPU hardware or packages required.
+
+**Keeping turbo up to date with upstream:**
+
+```bash
+git checkout main
+git pull origin main
+git checkout turbo
+git rebase main
+```
+
+See [PERFORMANCE_AUDIT.md](PERFORMANCE_AUDIT.md) for the full audit and optimization details.
+
+
 ### Alternate Installation: Docker Image
 
 Skip the standard installation process above.

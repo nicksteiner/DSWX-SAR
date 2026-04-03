@@ -9,6 +9,7 @@ from scipy import ndimage
 from joblib import Parallel, delayed
 
 from dswx_sar.common import _dswx_sar_util
+from dswx_sar.common._backend import xp, xndimage, to_device, to_host
 
 
 logger = logging.getLogger('dswx_sar')
@@ -71,11 +72,13 @@ def region_growing(likelihood_image,
                       f"{relaxed_threshold}."
             raise ValueError(err_str)
 
-    # Create initial binary image using seed value
+    # Transfer to GPU if available for the hot dilation loop
     if mode == 'descending':
-        binary_image = likelihood_image > initial_threshold
+        binary_image = to_device(likelihood_image > initial_threshold)
     else:
-        binary_image = likelihood_image < initial_threshold
+        binary_image = to_device(likelihood_image < initial_threshold)
+
+    likelihood_gpu = to_device(likelihood_image)
 
     newpixelmin = 0
     itercount = 0
@@ -84,10 +87,10 @@ def region_growing(likelihood_image,
     # Maximum iteration 0 is assumed as that region growing
     # should be carried out until all pixels are included.
     if maxiter == 0:
-        maxiter = np.inf
+        maxiter = xp.inf
 
     if exclude_area is not None:
-        target_area = np.invert(exclude_area)
+        target_area = xp.invert(to_device(exclude_area))
 
     # Run region growing until maximum iteration reaches
     # and no more pixels are found
@@ -95,30 +98,30 @@ def region_growing(likelihood_image,
 
         # exclude the original binary pixels from buffer binary
         if exclude_area is not None:
-            buffer_binary = np.logical_xor(
-                ndimage.binary_dilation(binary_image,
-                                        mask=target_area),
+            buffer_binary = xp.logical_xor(
+                xndimage.binary_dilation(binary_image,
+                                         mask=target_area),
                 binary_image)
         else:
-            buffer_binary = np.logical_xor(
-                ndimage.binary_dilation(binary_image),
+            buffer_binary = xp.logical_xor(
+                xndimage.binary_dilation(binary_image),
                 binary_image)
 
         # define new_binary for the pixels higher than relaxed_threshold
         if mode == 'descending':
-            new_binary = likelihood_image[buffer_binary] > relaxed_threshold
+            new_binary = likelihood_gpu[buffer_binary] > relaxed_threshold
         else:
-            new_binary = likelihood_image[buffer_binary] < relaxed_threshold
+            new_binary = likelihood_gpu[buffer_binary] < relaxed_threshold
 
         # add new pixels to binary_image
         binary_image[buffer_binary] = new_binary
-        number_added = np.sum(new_binary)
+        number_added = int(xp.sum(new_binary))
         itercount += 1
         if verbose:
             logger.info(f"full region growing iteration {itercount}: "
                         f"{number_added:.3f} pixels added")
 
-    return binary_image
+    return to_host(binary_image)
 
 
 def process_region_growing_block(block_param,

@@ -5,6 +5,8 @@ from scipy.interpolate import griddata
 from skimage.restoration import denoise_tv_chambolle, denoise_tv_bregman
 
 from dswx_sar.common._dswx_sar_util import Constants
+from dswx_sar.common._backend import (xp, xndimage, xsignal,
+                                       to_device, to_host, use_gpu)
 
 K_DEFAULT = 1.0
 CU_DEFAULT = 0.523
@@ -21,16 +23,20 @@ def masked_convolve2d(array, window, *args, **kwargs):
     window: integer
         2 dimensional window
     '''
-    frames_complex = np.zeros_like(array, dtype=np.complex64)
-    frames_complex[np.isnan(array)] = np.array((1j))
-    frames_complex[np.bitwise_not(np.isnan(array))] = \
-        array[np.bitwise_not(np.isnan(array))]
+    _xp = xp  # use GPU array ops if available
+    arr = to_device(array)
+    win = to_device(window)
 
-    convolved_array = signal.convolve(frames_complex, window, *args, **kwargs)
-    convolved_array[np.imag(convolved_array) > 0.2] = np.nan
-    convolved_array = convolved_array.real.astype(np.float32)
+    frames_complex = _xp.zeros_like(arr, dtype=_xp.complex64)
+    frames_complex[_xp.isnan(arr)] = _xp.array((1j))
+    frames_complex[_xp.bitwise_not(_xp.isnan(arr))] = \
+        arr[_xp.bitwise_not(_xp.isnan(arr))]
 
-    return convolved_array
+    convolved_array = xsignal.convolve(frames_complex, win, *args, **kwargs)
+    convolved_array[_xp.imag(convolved_array) > 0.2] = _xp.nan
+    convolved_array = convolved_array.real.astype(_xp.float32)
+
+    return to_host(convolved_array)
 
 import numpy as np
 from scipy.ndimage import uniform_filter
@@ -42,57 +48,35 @@ def compute_window_mean_std_fast(arr, winsize, nan_frac_thresh=0.2):
       - window is winsize x winsize box, normalized by area
       - NaNs do NOT spread; pixels with > nan_frac_thresh NaNs in the window
         are set to NaN in the output.
+
+    When DSWX_USE_GPU=1, uses cupyx.scipy.ndimage.uniform_filter on GPU.
     """
-    # Work in float64 for numeric stability
-    arr = np.asarray(arr, dtype=np.float64)
+    _xp = xp
+    _uf = xndimage.uniform_filter
 
-    # Valid mask: True where finite, False where NaN/inf
-    valid = np.isfinite(arr)
+    arr = _xp.asarray(arr, dtype=_xp.float64)
+    valid = _xp.isfinite(arr)
+    arr0 = _xp.where(valid, arr, 0.0)
 
-    # Replace invalid values with 0 for sums
-    arr0 = np.where(valid, arr, 0.0)
+    window_mean = _uf(arr0, size=winsize, mode='constant', cval=0.0)
 
-    # uniform_filter returns the average over the window.
-    # With zeros for invalid pixels, this matches your original
-    # real-part behavior in masked_convolve2d.
-    window_mean = uniform_filter(
-        arr0,
-        size=winsize,
-        mode='constant',
-        cval=0.0
-    )
+    arr_sq0 = _xp.where(valid, arr * arr, 0.0)
+    c2 = _uf(arr_sq0, size=winsize, mode='constant', cval=0.0)
 
-    # Second moment <x^2>
-    arr_sq0 = np.where(valid, arr * arr, 0.0)
-    c2 = uniform_filter(
-        arr_sq0,
-        size=winsize,
-        mode='constant',
-        cval=0.0
-    )
-
-    # Fraction of valid pixels in the window
-    valid_frac = uniform_filter(
-        valid.astype(np.float64),
-        size=winsize,
-        mode='constant',
-        cval=0.0
-    )
+    valid_frac = _uf(
+        valid.astype(_xp.float64), size=winsize, mode='constant', cval=0.0)
     nan_frac = 1.0 - valid_frac
 
-    # Variance
     var = c2 - window_mean * window_mean
+    var = _xp.where(var < 0, Constants.negligible_value, var)
+    window_std = _xp.sqrt(var)
 
-    # Replace small negative variances with a negligible value
-    var = np.where(var < 0, Constants.negligible_value, var)
-    window_std = np.sqrt(var)
-
-    # Apply the same "too many NaNs → output NaN" rule
     bad = nan_frac > nan_frac_thresh
-    window_mean[bad] = np.nan
-    window_std[bad] = np.nan
+    window_mean[bad] = _xp.nan
+    window_std[bad] = _xp.nan
 
-    return window_mean.astype(np.float32), window_std.astype(np.float32)
+    return (to_host(window_mean.astype(_xp.float32)),
+            to_host(window_std.astype(_xp.float32)))
 
 
 def compute_window_mean_std(arr, winsize):

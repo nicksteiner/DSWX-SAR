@@ -47,22 +47,16 @@ def _print_first_value_diff(image_1, image_2, prefix):
        prefix: str
             Prefix to the message printed to the user
     """
-    flag_error_found = False
-    for i in range(image_1.shape[0]):
-        for j in range(image_1.shape[1]):
-            if (abs(image_1[i, j] - image_2[i, j]) >=
-                    COMPARE_DSWX_SAR_PRODUCTS_ERROR_TOLERANCE):
-                flag_error_found = True
-
-                print(
-                    prefix + f'     * input 1 has value'
-                    f' "{image_1[i, j]}" in position'
-                    f' (x: {j}, y: {i})'
-                    f' whereas input 2 has value "{image_2[i, j]}"'
-                    ' in the same position.')
-                break
-        if flag_error_found:
-            break
+    diff_mask = np.abs(image_1.astype(float) - image_2.astype(float)) >= \
+        COMPARE_DSWX_SAR_PRODUCTS_ERROR_TOLERANCE
+    if np.any(diff_mask):
+        i, j = next(zip(*np.where(diff_mask)))
+        print(
+            prefix + f'     * input 1 has value'
+            f' "{image_1[i, j]}" in position'
+            f' (x: {j}, y: {i})'
+            f' whereas input 2 has value "{image_2[i, j]}"'
+            ' in the same position.')
 
 
 def _compare_dswx_sar_metadata(metadata_1, metadata_2):

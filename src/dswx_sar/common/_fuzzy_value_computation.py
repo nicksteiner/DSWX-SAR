@@ -5,9 +5,11 @@ import time
 
 import cv2
 from dswx_sar.common import _dswx_sar_util
+from joblib import Parallel, delayed
 import numpy as np
 
 from dswx_sar.common import _masking_with_ancillary
+from dswx_sar.common._backend import to_device, to_host, use_gpu
 
 logger = logging.getLogger('dswx_sar')
 
@@ -532,7 +534,8 @@ def run(cfg):
         data_shape,
         pad_shape)
 
-    for block_ind, block_param in enumerate(block_params):
+    def _compute_fuzzy_block(block_ind, block_param):
+        """Compute fuzzy values for a single block (no I/O writes)."""
         logger.info(f'fuzzy logic computation block {block_ind}')
         intensity = _dswx_sar_util.get_raster_block(
             filt_im_str, block_param)
@@ -542,7 +545,6 @@ def run(cfg):
         no_data_raster = _dswx_sar_util.get_raster_block(
             no_data_raster_path, block_param)
 
-        # Read Ancillary files
         interphand = _dswx_sar_util.get_raster_block(
             hand_gdal_str, block_param)
 
@@ -553,14 +555,11 @@ def run(cfg):
             reference_water_gdal_str, block_param)
         wbd = np.array(wbd, dtype='float32')
         wbd[wbd == ref_no_data] = np.nan
-        # normalize water occurrence/seasonality value
         wbd = wbd / ref_water_max
 
-        # Compute slope angle from DEM
         slope = _dswx_sar_util.get_raster_block(
             slope_gdal_str, block_param)
 
-        # compute fuzzy value
         (fuzzy_avgvalue, intensity_z, hand_z,
          slope_z, area_s, ref_water, copol_only) = \
             compute_fuzzy_value(
@@ -578,6 +577,22 @@ def run(cfg):
 
         fuzzy_avgvalue[interphand > option_dict['hand_threshold']] = 0
         fuzzy_avgvalue[no_data_raster == 1] = -1
+
+        return (block_param, fuzzy_avgvalue, intensity_z,
+                hand_z, slope_z, area_s, ref_water, copol_only)
+
+    # Parallel compute, sequential write
+    number_workers = processing_cfg.number_workers \
+        if hasattr(processing_cfg, 'number_workers') else -1
+    block_params_list = list(enumerate(block_params))
+
+    results = Parallel(n_jobs=number_workers)(
+        delayed(_compute_fuzzy_block)(block_ind, block_param)
+        for block_ind, block_param in block_params_list
+    )
+
+    for (block_param, fuzzy_avgvalue, intensity_z,
+         hand_z, slope_z, area_s, ref_water, copol_only) in results:
 
         _dswx_sar_util.write_raster_block(
             out_raster=fuzzy_output_str,

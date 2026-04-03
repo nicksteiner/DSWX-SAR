@@ -3,6 +3,7 @@ import glob
 import logging
 import mimetypes
 from dswx_sar.common import _dswx_sar_util, _filter_SAR, _generate_log
+from joblib import Parallel, delayed
 import numpy as np
 import os
 import pathlib
@@ -198,15 +199,13 @@ def run(cfg):
                     im_meta['width']),
         pad_shape=pad_shape)
 
-    for block_ind, block_param in enumerate(block_params):
+    def _filter_one_block(block_param):
+        """Filter a single block for all polarizations (no I/O writes)."""
         output_image_set = []
         for polind, pol in enumerate(pol_list):
-            logger.info(f'  block processing {block_ind} - {pol}')
+            logger.info(f'  block processing - {pol}')
 
             if pol in ['ratio', 'span']:
-
-                # If ratio/span is in the list,
-                # then compute the ratio from VVVV and VHVH
                 temp_pol_list = co_pol + cross_pol
                 logger.info(f'  >> computing {pol} {temp_pol_list}')
 
@@ -214,11 +213,8 @@ def run(cfg):
                 for temp_pol in temp_pol_list:
                     filename = \
                         f'{scratch_dir}/{mosaic_prefix}_{temp_pol}.tif'
-
                     block_data = _dswx_sar_util.get_raster_block(
-                        filename,
-                        block_param)
-
+                        filename, block_param)
                     temp_raster_set.append(block_data)
 
                 temp_raster_set = np.array(temp_raster_set)
@@ -237,28 +233,23 @@ def run(cfg):
                 if mosaic_flag:
                     intensity_path = \
                         f'{scratch_dir}/{mosaic_prefix}_{pol}.tif'
-
                     intensity = _dswx_sar_util.get_raster_block(
                         intensity_path, block_param)
                 else:
                     intensity = _dswx_sar_util.read_geotiff(
                             ref_filename, band_ind=polind)
-                # need to replace 0 value in padded area to NaN.
                 intensity[intensity == 0] = np.nan
                 if filter_flag:
                     if filter_method == 'lee':
                         filtering_method = _filter_SAR.lee_enhanced_filter
                         filter_option = vars(filter_options.lee_filter)
-
                     elif filter_method == 'anisotropic_diffusion':
                         filtering_method = _filter_SAR.anisotropic_diffusion
                         filter_option = vars(
                             filter_options.anisotropic_diffusion)
-
                     elif filter_method == 'guided_filter':
                         filtering_method = _filter_SAR.guided_filter
                         filter_option = vars(filter_options.guided_filter)
-
                     elif filter_method == 'bregman':
                         filtering_method = _filter_SAR.tv_bregman
                         filter_option = vars(filter_options.bregman)
@@ -271,7 +262,18 @@ def run(cfg):
 
         output_image_set = np.array(output_image_set, dtype='float32')
         output_image_set[output_image_set == 0] = np.nan
+        return block_param, output_image_set
 
+    # Parallel compute, sequential write
+    number_workers = processing_cfg.number_workers \
+        if hasattr(processing_cfg, 'number_workers') else -1
+    results = Parallel(n_jobs=number_workers)(
+        delayed(_filter_one_block)(block_param)
+        for block_ind, block_param in enumerate(block_params)
+    )
+
+    results.sort(key=lambda x: x[0].write_start_line)
+    for block_param, output_image_set in results:
         _dswx_sar_util.write_raster_block(
             out_raster=filtered_image_path,
             data=output_image_set,

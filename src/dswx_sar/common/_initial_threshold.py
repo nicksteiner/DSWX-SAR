@@ -15,6 +15,8 @@ from skimage.filters import threshold_multiotsu, threshold_otsu
 
 from dswx_sar.common import _dswx_sar_util, _refine_with_bimodality
 from dswx_sar.common import (_region_growing)
+from dswx_sar.common._backend import (x_threshold_otsu, x_threshold_multiotsu,
+                                       to_device, to_host, use_gpu)
 
 
 logger = logging.getLogger('dswx_sar')
@@ -1932,8 +1934,8 @@ def compute_threshold_max_bound(intensity_path,
     last_block = np.round(im_meta['length'] / lines_per_block)
 
     for band_ind in range(im_meta['band_number']):
-        intensity_array_db_set = np.array([])
-        intensity_water_array_set = np.array([])
+        _intensity_water_chunks = []
+        _intensity_db_chunks = []
 
         block_params = _dswx_sar_util.block_param_generator(
             lines_per_block,
@@ -1963,14 +1965,17 @@ def compute_threshold_max_bound(intensity_path,
             valid_intensity_water_array = remove_invalid(intensity_water_array)
 
             if len(valid_intensity_water_array):
-                intensity_water_array_set = np.append(
-                    intensity_water_array_set,
-                    valid_intensity_water_array)
-                intensity_array_db_set = np.append(
-                    intensity_array_db_set,
+                _intensity_water_chunks.append(valid_intensity_water_array)
+                _intensity_db_chunks.append(
                     convert_pow2db(valid_intensity_water_array))
 
             if block_ind + 1 == last_block:
+                intensity_water_array_set = np.concatenate(
+                    _intensity_water_chunks) if _intensity_water_chunks \
+                    else np.array([])
+                intensity_array_db_set = np.concatenate(
+                    _intensity_db_chunks) if _intensity_db_chunks \
+                    else np.array([])
                 if len(intensity_water_array_set):
                     metric_obj = _refine_with_bimodality.BimodalityMetrics(
                         intensity_water_array_set)

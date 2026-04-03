@@ -15,6 +15,9 @@ from skimage.filters import (threshold_otsu,
                              threshold_multiotsu)
 import gc
 
+from dswx_sar.common._backend import (xp, xndimage, x_threshold_otsu,
+                                       x_threshold_multiotsu,
+                                       to_device, to_host, use_gpu)
 from dswx_sar.sentinel1 import (masking_with_ancillary)
 from dswx_sar.sentinel1.dswx_runconfig import (_get_parser,
                                      RunConfig,

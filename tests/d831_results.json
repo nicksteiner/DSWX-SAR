@@ -1,42 +1,68 @@
 {
   "indiana_white": {
     "site": "indiana_white",
-    "image_shape": [
-      17676,
-      17856
-    ],
+    "image_shape": [17676, 17856],
     "n_blocks": 2025,
     "block_size": 400,
-    "blocks": [],
     "n_processed": 1039,
-    "total_time_200": 197.0095,
-    "total_time_100": 174.6474,
-    "time_saved_s": 22.3621,
-    "speedup_pct": 11.35,
+    "n_active": 176,
+    "n_both_empty": 863,
+    "water_fraction_pct": 3.7,
+    "total_time_200": 198.47,
+    "total_time_100": 180.43,
+    "time_saved_s": 18.04,
+    "speedup_pct": 9.09,
     "total_tiles_200": 2615,
     "total_tiles_100": 2946,
     "n_blocks_differ": 47,
-    "n_blocks_round1_contributes": 38,
-    "tiles_identical": false
+    "n_blocks_ws200_more": 38,
+    "n_extra_tiles_ws200": 83,
+    "n_blocks_ws100_more": 9,
+    "n_extra_tiles_ws100": 414,
+    "note": "Verified with independent (non-interleaved) runs"
   },
   "patoka_princeton": {
     "site": "patoka_princeton",
-    "image_shape": [
-      17424,
-      17676
-    ],
+    "image_shape": [17424, 17676],
     "n_blocks": 1980,
     "block_size": 400,
-    "blocks": [],
     "n_processed": 729,
-    "total_time_200": 78.6071,
-    "total_time_100": 264.696,
-    "time_saved_s": -186.0889,
-    "speedup_pct": -236.73,
+    "n_active": 84,
+    "water_fraction_pct": 0.6,
+    "total_time_200": 75.58,
+    "total_time_100": 64.32,
+    "time_saved_s": 11.26,
+    "speedup_pct": 14.9,
     "total_tiles_200": 1391,
     "total_tiles_100": 1544,
     "n_blocks_differ": 50,
-    "n_blocks_round1_contributes": 44,
-    "tiles_identical": false
+    "n_blocks_ws200_more": 44,
+    "note": "Verified with independent (non-interleaved) runs"
+  },
+  "round_analysis": {
+    "indiana_white": {
+      "ws200_start": {
+        "active_blocks": 214,
+        "blocks_reaching_ws50": 209,
+        "total_time_s": 156.65
+      },
+      "ws100_start": {
+        "active_blocks": 214,
+        "blocks_reaching_ws50": 213,
+        "total_time_s": 167.29
+      }
+    },
+    "patoka_princeton": {
+      "ws200_start": {
+        "active_blocks": 104,
+        "blocks_reaching_ws50": 99,
+        "total_time_s": 57.22
+      },
+      "ws100_start": {
+        "active_blocks": 104,
+        "blocks_reaching_ws50": 101,
+        "total_time_s": 50.34
+      }
+    }
   }
 }

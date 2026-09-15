@@ -1987,11 +1987,24 @@ def compute_threshold_max_bound(intensity_path,
                              intensity_sub_std,
                              _) = metric_obj.first_mode
                         else:
-                            thres_temp = threshold_otsu(intensity_array_db_set)
+                            try:
+                                thres_temp = threshold_otsu(
+                                    intensity_array_db_set)
+                            except ValueError:
+                                thres_temp = np.nanmedian(
+                                    intensity_array_db_set)
                             valid_samples = intensity_array_db_set[
                                 intensity_array_db_set > thres_temp]
-                            intensity_sub_mean = np.nanmean(valid_samples)
-                            intensity_sub_std = np.nanstd(valid_samples)
+                            if len(valid_samples) > 0:
+                                intensity_sub_mean = np.nanmean(
+                                    valid_samples)
+                                intensity_sub_std = np.nanstd(
+                                    valid_samples)
+                            else:
+                                intensity_sub_mean = np.nanmean(
+                                    intensity_array_db_set)
+                                intensity_sub_std = np.nanstd(
+                                    intensity_array_db_set)
                     else:
                         intensity_sub_mean = np.nanmean(intensity_array_db_set)
                         intensity_sub_std = np.nanstd(intensity_array_db_set)

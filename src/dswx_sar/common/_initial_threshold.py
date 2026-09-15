@@ -885,7 +885,10 @@ def determine_threshold(
                 step_histogram)
 
         elif method in ['otsu', 'rg']:
-            threshold = threshold_otsu(intensity_sub)
+            try:
+                threshold = threshold_otsu(intensity_sub)
+            except ValueError:
+                threshold = np.nanmedian(intensity_sub)
 
         # get index of threshold from histogram.
         idx_threshold = np.searchsorted(intensity_bins, threshold)
@@ -1075,7 +1078,10 @@ def determine_threshold(
             intensity_sub2 = intensity_sub[intensity_sub < tri_second_mode[0]]
 
             if intensity_sub2.size > 0:
-                tau_bound_gauss = threshold_otsu(intensity_sub2)
+                try:
+                    tau_bound_gauss = threshold_otsu(intensity_sub2)
+                except ValueError:
+                    tau_bound_gauss = np.nanmedian(intensity_sub2)
 
                 if threshold > tau_bound_gauss:
                     threshold = tau_bound_gauss

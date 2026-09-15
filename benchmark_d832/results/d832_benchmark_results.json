@@ -1,0 +1,155 @@
+{
+  "frame_081": {
+    "tile_results": {
+      "preproc_timings": {
+        "mosaic": 28.340107202529907,
+        "preproc_HH_HV": 77.87929248809814
+      },
+      "200": {
+        "timings": {
+          "initial_threshold_HH_HV": 149.47387886047363,
+          "fuzzy_value_HH_HV": 32.60236048698425,
+          "region_growing_HH_HV": 55.9451162815094,
+          "masking_ancillary_HH_HV": 101.59396266937256,
+          "refine_bimodality_HH_HV": 84.71752548217773,
+          "total_phase2": 424.3328437805176
+        },
+        "water_map_source": "merged_fill_gap_HH_HV.tif",
+        "water_pixels": 198,
+        "total_pixels": 97588550,
+        "saved_files": [
+          "intensity_threshold_filled_HH.tif",
+          "intensity_threshold_filled_HV.tif",
+          "mode_tau_filled_HH.tif",
+          "mode_tau_filled_HV.tif",
+          "merged_fill_gap_HH_HV.tif",
+          "refine_landcover_binary_HH_HV.tif",
+          "region_growing_output_binary_HH_HV.tif",
+          "fuzzy_image_HH_HV.tif"
+        ]
+      },
+      "400": {
+        "timings": {
+          "initial_threshold_HH_HV": 110.30193567276001,
+          "fuzzy_value_HH_HV": 39.73596000671387,
+          "region_growing_HH_HV": 57.84032487869263,
+          "masking_ancillary_HH_HV": 103.39176893234253,
+          "refine_bimodality_HH_HV": 84.82064700126648,
+          "total_phase2": 396.0906364917755
+        },
+        "water_map_source": "merged_fill_gap_HH_HV.tif",
+        "water_pixels": 180,
+        "total_pixels": 97588550,
+        "saved_files": [
+          "intensity_threshold_filled_HH.tif",
+          "intensity_threshold_filled_HV.tif",
+          "mode_tau_filled_HH.tif",
+          "mode_tau_filled_HV.tif",
+          "merged_fill_gap_HH_HV.tif",
+          "refine_landcover_binary_HH_HV.tif",
+          "region_growing_output_binary_HH_HV.tif",
+          "fuzzy_image_HH_HV.tif"
+        ]
+      },
+      "800": {
+        "timings": {
+          "initial_threshold_HH_HV": 88.69345116615295,
+          "fuzzy_value_HH_HV": 30.776586771011353,
+          "region_growing_HH_HV": 52.36053109169006,
+          "masking_ancillary_HH_HV": 116.97772097587585,
+          "refine_bimodality_HH_HV": 87.9429337978363,
+          "total_phase2": 376.7512238025665
+        },
+        "water_map_source": "merged_fill_gap_HH_HV.tif",
+        "water_pixels": 212,
+        "total_pixels": 97588550,
+        "saved_files": [
+          "intensity_threshold_filled_HH.tif",
+          "intensity_threshold_filled_HV.tif",
+          "mode_tau_filled_HH.tif",
+          "mode_tau_filled_HV.tif",
+          "merged_fill_gap_HH_HV.tif",
+          "refine_landcover_binary_HH_HV.tif",
+          "region_growing_output_binary_HH_HV.tif",
+          "fuzzy_image_HH_HV.tif"
+        ]
+      }
+    },
+    "comparisons": {
+      "tile200_vs_tile400": {
+        "iou": 0.4372623574144487,
+        "f1": 0.6084656084656084,
+        "precision": 0.5808080808080808,
+        "recall": 0.6388888888888888,
+        "water_pixels_a": 198,
+        "water_pixels_b": 180,
+        "intersection": 115,
+        "union": 263,
+        "changed_pixels": 148,
+        "total_pixels": 97588550
+      },
+      "tile800_vs_tile400": {
+        "iou": 0.225,
+        "f1": 0.36734693877551017,
+        "precision": 0.33962264150943394,
+        "recall": 0.4,
+        "water_pixels_a": 212,
+        "water_pixels_b": 180,
+        "intersection": 72,
+        "union": 320,
+        "changed_pixels": 248,
+        "total_pixels": 97588550
+      },
+      "tile200_vs_tile800": {
+        "iou": 0.25382262996941896,
+        "f1": 0.40487804878048783,
+        "precision": 0.41919191919191917,
+        "recall": 0.3915094339622642,
+        "water_pixels_a": 198,
+        "water_pixels_b": 212,
+        "intersection": 83,
+        "union": 327,
+        "changed_pixels": 244,
+        "total_pixels": 97588550
+      }
+    },
+    "threshold_stats": {
+      "tile200_HH": {
+        "mean": -13.1796875,
+        "std": Infinity,
+        "min": -16.765625,
+        "max": -11.171875
+      },
+      "tile200_HV": {
+        "mean": -19.328125,
+        "std": Infinity,
+        "min": -22.171875,
+        "max": -18.03125
+      },
+      "tile400_HH": {
+        "mean": -13.2578125,
+        "std": Infinity,
+        "min": -14.671875,
+        "max": -11.234375
+      },
+      "tile400_HV": {
+        "mean": -19.03125,
+        "std": Infinity,
+        "min": -20.703125,
+        "max": -18.046875
+      },
+      "tile800_HH": {
+        "mean": -13.125,
+        "std": Infinity,
+        "min": -14.78125,
+        "max": -11.2265625
+      },
+      "tile800_HV": {
+        "mean": -19.015625,
+        "std": Infinity,
+        "min": -20.703125,
+        "max": -18.0
+      }
+    }
+  }
+}

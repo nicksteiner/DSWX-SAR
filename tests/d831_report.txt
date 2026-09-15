@@ -1,0 +1,33 @@
+D831: win_size=200 skip validation
+==================================================
+
+Mathematical proof:
+  For block_size=400, win_size=200: max_tiles=9 < minimum_tile=20
+  For block_size=400, win_size=100: max_tiles=49 >= minimum_tile=20
+  => Round 1 (win_size=200) is UNCONDITIONALLY unsatisfiable
+
+indiana_white:
+  Blocks processed: 1039
+  Time (win_size=200): 197.01s
+  Time (win_size=100): 174.65s
+  Time saved: 22.36s (11.3%)
+  Tiles (200): 2615
+  Tiles (100): 2946
+  Blocks where output differs: 47
+  Round 1 contributed tiles: 38
+  Tile sets identical: False
+
+patoka_princeton:
+  Blocks processed: 729
+  Time (win_size=200): 78.61s
+  Time (win_size=100): 264.70s
+  Time saved: -186.09s (-236.7%)
+  Tiles (200): 1391
+  Tiles (100): 1544
+  Blocks where output differs: 50
+  Round 1 contributed tiles: 44
+  Tile sets identical: False
+
+GO/NO-GO DECISION:
+  FURTHER ANALYSIS NEEDED — Round 1 contributes tiles in some blocks.
+  Need to compare thresholds and water maps.

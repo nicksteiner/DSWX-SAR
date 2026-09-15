@@ -73,7 +73,11 @@ class BimodalityMetrics:
         if len(int_db) >= 3:
             self.enough_number = True
             # Threshold for two Gaussian fitting
-            self.threshold_global_otsu = threshold_otsu(int_db)
+            try:
+                self.threshold_global_otsu = threshold_otsu(int_db)
+            except ValueError:
+                # Fallback when data range is too narrow for histogram bins
+                self.threshold_global_otsu = np.nanmedian(int_db)
 
             # If the threshold is too low,
             # then apply multi-threshold algorithm

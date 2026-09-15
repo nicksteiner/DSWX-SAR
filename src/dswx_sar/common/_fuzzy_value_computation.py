@@ -33,6 +33,9 @@ def compute_slope_dem(dem):
     sl : numpy.ndarray
         slope angle raster
     '''
+    # Ensure float32/64 input — OpenCV Sobel rejects float16
+    if dem.dtype == np.float16:
+        dem = dem.astype(np.float32)
     sobelx = cv2.Sobel(dem, cv2.CV_64F, 1, 0, ksize=SOBEL_KERNEL_SIZE)  # x
     sobely = cv2.Sobel(dem, cv2.CV_64F, 0, 1, ksize=SOBEL_KERNEL_SIZE)  # y
 

@@ -190,6 +190,8 @@ def read_geotiff(input_tif_str, band_ind=None, verbose=True):
     tif.FlushCache()
     tif = None
     del tif
+    if tifdata.dtype == np.float16:   # see get_raster_block
+        tifdata = tifdata.astype(np.float32)
     if verbose:
         print(f" -- Reading {input_tif_str} ... {tifdata.shape}")
     return tifdata
@@ -310,9 +312,13 @@ def save_dswx_product(wtr, output_file, geotransform,
     gdal_ds.SetProjection(projection)
 
     gdal_band = gdal_ds.GetRasterBand(1)
-    gdal_band.WriteArray(wtr)
+    # Set nodata / colour table / description BEFORE writing pixels. GDAL >= 3.12
+    # refuses to change PhotometricInterpretation once data has been written
+    # ("Cannot modify tag ... while writing"); the raster was then left mostly
+    # unwritten and read back as nodata (255).
     gdal_band.SetNoDataValue(band_value_dict['no_data'])
-    gdal_band.SetMetadata(metadata)
+    if metadata is not None:
+        gdal_band.SetMetadata(metadata)
     # set color table and color interpretation
     if not is_diag:
         dswx_ctable = get_interpreted_dswx_s1_ctable()
@@ -323,6 +329,7 @@ def save_dswx_product(wtr, output_file, geotransform,
     if description is not None:
         gdal_band.SetDescription(description)
 
+    gdal_band.WriteArray(wtr)
     gdal_band.FlushCache()
     gdal_band = None
 
@@ -876,6 +883,11 @@ def get_raster_block(raster_path, block_param):
             block_param.read_start_line,
             block_param.data_width,
             block_param.read_length)
+        # GDAL >= 3.11 hands Float16 rasters back as numpy float16; every
+        # downstream reduction (mean/std over a component, histogram stats)
+        # overflows at 65504 and returns inf/nan. Promote on read.
+        if data_block.dtype == np.float16:
+            data_block = data_block.astype(np.float32)
 
         # Pad data_block with zeros according to pad_length/pad_width
         data_block = np.pad(data_block, block_param.block_pad,
@@ -1907,6 +1919,22 @@ def partial_water_product(input_file,
         if logger is not None:
             logger.info('Partial Surface water was disable due to same spacings in input and output.')
         threshold = 1
+
+    # `threshold` is a count of fine pixels per coarse pixel, tuned for the
+    # 10 m -> 30 m case (9 fine pixels, full water at >= 5).  For any other
+    # ratio (e.g. 10 m -> 20 m: 4 fine pixels) a count of 5 can never be
+    # reached and *every* water pixel is emitted as partial water (class 8),
+    # with no open water at all.  Rescale the count to the same fraction of
+    # the block when it exceeds the block size.
+    ratio = int(output_spacing / intermediate_spacing)
+    if threshold > ratio ** 2:
+        new_threshold = max(1, math.ceil(threshold * ratio ** 2 / 9))
+        if logger is not None:
+            logger.warning(
+                f'partial_surface_water.threshold={threshold} exceeds the '
+                f'{ratio ** 2} fine pixels per {output_spacing} m output pixel; '
+                f'using {new_threshold} (same fraction of the block).')
+        threshold = new_threshold
 
     full_water = water >= threshold
     partial_water = (water < threshold) & (water > 0)

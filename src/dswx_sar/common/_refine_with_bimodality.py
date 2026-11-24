@@ -70,10 +70,22 @@ class BimodalityMetrics:
         # remove invalid values
         mask = (np.isnan(int_db)) | (np.isinf(int_db)) | (np.isinf(-int_db))
         int_db = int_db[np.invert(mask)]
+        # A near-degenerate component (finite values spanning almost no
+        # range) makes threshold_otsu's 256-bin histogram raise
+        # "Too many bins for data range". np.ptp alone doesn't catch every
+        # case (tiny-but-nonzero ranges still fail), so wrap the otsu call
+        # and treat any failure like the not-enough-data case so the run
+        # continues instead of crashing the whole parallel batch.
+        otsu_ok = False
         if len(int_db) >= 3:
+            try:
+                self.threshold_global_otsu = threshold_otsu(int_db)
+                otsu_ok = True
+            except ValueError:
+                logger.info('threshold_otsu failed (degenerate component); '
+                            'skipping as non-bimodal.')
+        if otsu_ok:
             self.enough_number = True
-            # Threshold for two Gaussian fitting
-            self.threshold_global_otsu = threshold_otsu(int_db)
 
             # If the threshold is too low,
             # then apply multi-threshold algorithm

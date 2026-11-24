@@ -33,6 +33,11 @@ def compute_slope_dem(dem):
     sl : numpy.ndarray
         slope angle raster
     '''
+    # cv2.Sobel's getSobelKernels rejects float16 (CV_16F); the NISAR
+    # relocated DEM can come through as float16, so cast to float32
+    # (lossless for elevation magnitudes) before the kernel.
+    if dem.dtype == np.float16:
+        dem = dem.astype(np.float32)
     sobelx = cv2.Sobel(dem, cv2.CV_64F, 1, 0, ksize=SOBEL_KERNEL_SIZE)  # x
     sobely = cv2.Sobel(dem, cv2.CV_64F, 0, 1, ksize=SOBEL_KERNEL_SIZE)  # y
 

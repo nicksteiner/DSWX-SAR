@@ -127,6 +127,13 @@ def safe_n_jobs(n_blocks, memory_per_job_gb=1.0):
     # Reserve 50% of available RAM for other usage
     max_by_ram = max(1, int(0.5 * total_ram_gb / memory_per_job_gb))
     n_jobs = min(cpu_count, n_blocks, max_by_ram)
+    # Hard cap for shared hosts / several concurrent runs: DSWX_MAX_WORKERS=N
+    try:
+        env_cap = int(os.environ.get('DSWX_MAX_WORKERS', '0'))
+    except ValueError:
+        env_cap = 0
+    if env_cap > 0:
+        n_jobs = min(n_jobs, env_cap)
     # Don't bother with parallel overhead for tiny workloads
     if n_jobs <= 1 or n_blocks < 3:
         return 1

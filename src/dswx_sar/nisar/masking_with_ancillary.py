@@ -89,12 +89,22 @@ def run(cfg):
         mask_label=landcover_masking_list)
     del mask_obj
 
-    glad_obj = _masking_with_ancillary.FillMaskLandCover(glad_path, 'GLAD')
-
-    target_glad_class = ['1-24']
-    inundated_vege_target = parse_ranges(target_glad_class)
-    glad_mask_excluded_landcover = glad_obj.get_mask(
-                mask_label=inundated_vege_target)
+    # GLAD classification is optional (schema: glad_classification_file
+    # required=False; the Sentinel-1 path skips it when absent). The NISAR
+    # path assumed it was always present — guard so a run without GLAD falls
+    # back to WorldCover-only masking instead of crashing.
+    glad_available = os.path.exists(glad_path)
+    if glad_available:
+        glad_obj = _masking_with_ancillary.FillMaskLandCover(glad_path, 'GLAD')
+        target_glad_class = ['1-24']
+        inundated_vege_target = parse_ranges(target_glad_class)
+        glad_mask_excluded_landcover = glad_obj.get_mask(
+                    mask_label=inundated_vege_target)
+    else:
+        logger.info('GLAD classification not provided; '
+                    'using WorldCover-only landcover masking.')
+        glad_obj = None
+        glad_mask_excluded_landcover = np.zeros_like(mask_excluded_landcover)
     mask_excluded_landcover_path = os.path.join(
         outputdir, 'initial_mask_excluded_landcover_ancillary.tif')
 
@@ -126,11 +136,14 @@ def run(cfg):
             dry_water_area_threshold=dry_water_area_threshold)
         mask_excluded_landcover_original = copy.deepcopy(mask_excluded_landcover)
 
-        potential_water_glad_class = ['100-230']
-        potential_water_glad_class_whole = parse_ranges(potential_water_glad_class)
-        potential_water_glad = glad_obj.get_mask(mask_label=potential_water_glad_class_whole)
         # region growing does not cover the water areas
         initial_mask_excluded_landcover = _dswx_sar_util.read_geotiff(initial_darkland_cand_path)
+        if glad_obj is not None:
+            potential_water_glad_class = ['100-230']
+            potential_water_glad_class_whole = parse_ranges(potential_water_glad_class)
+            potential_water_glad = glad_obj.get_mask(mask_label=potential_water_glad_class_whole)
+        else:
+            potential_water_glad = np.zeros_like(initial_mask_excluded_landcover, dtype=bool)
         rg_excluded_area = np.logical_or(interp_wbd > dry_water_area_threshold,
                                          potential_water_glad)
 

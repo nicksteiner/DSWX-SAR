@@ -23,6 +23,10 @@ logger = logging.getLogger('dswx_sar')
 
 
 def convert_pow2db(intensity):
+    # D711 fork fix: float16 rasters (GDAL >= 3.11 reads Float16 natively)
+    # overflow in downstream mean/std reductions (float16 max 65504 -> -inf
+    # water-bound stats -> non-finite histogram bins crash). Promote first.
+    intensity = np.asarray(intensity, dtype=np.float64)
     """Convert power to decibels
 
     Parameters
@@ -689,6 +693,19 @@ def compute_ki_threshold(
     index_ki_threshold : int
         index for ki threshold
     """
+    # --- D711 defensive guard (local fork): non-finite samples or bounds must
+    # not reach np.histogram ("Too many bins for data range" crash). Sanitize
+    # here; NaN threshold is handled by the tile fill/interpolation downstream.
+    intensity = np.asarray(intensity)
+    intensity = intensity[np.isfinite(intensity)]
+    if intensity.size == 0:
+        return np.nan, 0
+    if not np.isfinite(min_intensity_histogram):
+        min_intensity_histogram = float(np.percentile(intensity, 1))
+    if not np.isfinite(max_intensity_histogram):
+        max_intensity_histogram = float(np.percentile(intensity, 99))
+    if max_intensity_histogram <= min_intensity_histogram:
+        max_intensity_histogram = min_intensity_histogram + 1.0
     numstep = int((max_intensity_histogram -
                    min_intensity_histogram) /
                   step_histogram)
@@ -1859,6 +1876,10 @@ def process_block(ii, jj,
                                             x_size,
                                             y_size)
     filt_raster_tif = None
+    # D711 fork fix: promote Float16 rasters before tile statistics (see
+    # convert_pow2db note) — float16 percentile/histogram math produces
+    # non-finite bin edges and crashes np.histogram.
+    image_sub = np.asarray(image_sub, dtype=np.float64)
 
     wbd_gdal = gdal.Open(wbd_im_str)
     wbd_sub = wbd_gdal.ReadAsArray(jj * block_col,
@@ -1976,6 +1997,10 @@ def compute_threshold_max_bound(intensity_path,
                 intensity_array_db_set = np.concatenate(
                     _intensity_db_chunks) if _intensity_db_chunks \
                     else np.array([])
+                # D711 guard: keep stats finite (see compute_ki_threshold note)
+                _fin = np.isfinite(intensity_array_db_set)
+                intensity_water_array_set = intensity_water_array_set[_fin]
+                intensity_array_db_set = intensity_array_db_set[_fin]
                 if len(intensity_water_array_set):
                     metric_obj = _refine_with_bimodality.BimodalityMetrics(
                         intensity_water_array_set)

@@ -826,6 +826,9 @@ def run(cfg):
 
     if processing_cfg.debug_mode:
         filtered_intensity = _dswx_sar_util.read_geotiff(filtered_image_path)
+        # Single-band GeoTIFFs come back 2-D; keep (band, y, x) indexing valid.
+        if filtered_intensity.ndim == 2:
+            filtered_intensity = filtered_intensity[np.newaxis, :, :]
 
         for pol_ind, pol in enumerate(pol_list):
             if pol == 'ratio':
